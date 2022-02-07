@@ -1,0 +1,11 @@
+*.Rproj*
+.idea/
+dev/
+inst/
+renv.lock
+renv/
+.Rhistory
+.Rprofile
+.Rdata
+.httr-oauth
+.DS_Store
