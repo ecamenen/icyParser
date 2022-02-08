@@ -4,109 +4,102 @@
 #########                 process new data                  ###########
 #######################################################################
 
-
-setwd("/Volumes/iss01.haik-potier/alz_potier/commun/AMAL/Amal_Laura/Analyse-CathB-size4/Folders-LEA/2020.09.24/20200924-IHC H030-DS-D M15_results")
-
-
-######################################################################
-####### This will automatically install any library you need #########
-######################################################################
-
-librairies <- c(
-        "readxl",
-        "janitor",
-        "stringr"
+folder <- file.path(
+    "Analyse-CathB-size4_2021.11.25",
+    "Folders-LEA_previous-new-analysis",
+    "2020.09.24",
+    "20200924-IHC H030-DS-D M15_results"
 )
-
-
-load_libraries <- function(librairies) { #function for loading of libraries
-        for (l in librairies) {
-                if (!(l %in% installed.packages()[, "Package"])) #if package not installed
-                        utils::install.packages(l, type = "source")
-                suppressPackageStartupMessages(library(
-                        l,
-                        character.only = TRUE,
-                        warn.conflicts = FALSE,
-                        quietly = TRUE
-                ))
-        }
-}
-
-load_libraries(librairies) 
-
-rm(librairies,load_libraries)
+paths <- file.path("inst", "extdata")
 
 ######################################################################
 ######## First step: load all the dataframes to the space ############
 ######################################################################
 
-temp = list.files(pattern="*.xls")
+# Get all Excel files (with an .xls extension)
+temp <- list.files(file.path(paths, folder), pattern = "*.xls")
 
-
-for (i in 1:length(temp)) {
-        name<-temp[i]
-        df<-read_excel(name)
-        df<-janitor::clean_names(df) 
-        if(str_detect(name, "CONTOUR")==TRUE){
-                df$data<-rep("contour")
-        }
-        if(str_detect(name, "All-CathepsinB")==TRUE){
-                df$data<-rep("all CATHB")
-        }
-        if(str_detect(name, "Exclusive-CathepsinB")==TRUE){
-                df$data<-rep("excl CATHB")
-        }
-        if(str_detect(name, "MinusLipofuscin")==TRUE){
-                df$data<-rep("minus LF")
-        }
-        if(str_detect(name, "ICY_Lipofuscin")==TRUE){
-                df$data<-rep("LF")
-        }
-        name<-paste(name,collapse = "")
-        assign(name,df)
-        rm(df,name)
+# For each of these files: get their name, read them, format their columns,
+# assign them a different metadata according to the type of data
+# (among contour, all, exclusive, minus or lipofuscin)
+for (i in seq_along(temp)) {
+    name <- temp[i]
+    df <- read_excel(file.path(paths, folder, name))
+    df <- janitor::clean_names(df)
+    if (str_detect(name, "CONTOUR") == TRUE) {
+        df$data <- rep("contour")
+    }
+    if (str_detect(name, "All-CathepsinB") == TRUE) {
+        df$data <- rep("all CATHB")
+    }
+    if (str_detect(name, "Exclusive-CathepsinB") == TRUE) {
+        df$data <- rep("excl CATHB")
+    }
+    if (str_detect(name, "MinusLipofuscin") == TRUE) {
+        df$data <- rep("minus LF")
+    }
+    if (str_detect(name, "Lipofuscin") == TRUE) {
+        df$data <- rep("LF")
+    }
+    name <- paste(name, collapse = "")
+    assign(name, df)
+    rm(df, name)
 }
 
-rm(i,temp)
+rm(i, temp, librairies, load_libraries, folder, paths)
 
-rm(list=ls(pattern="negative")) #removes all files that include the name word negative
+# removes all files that include the name word negative
+rm(list = ls(pattern = "negative"))
+
+# length(temp[!grepl("negative", temp)]) / 5
+# 150 / 5 = 30
+# 30 - 3 (2 cells) = 27
 
 #####################################################################
 ######## Second step: put together those that are the same ##########
 #####################################################################
 
-list<-ls()
-cells<-vector()
+list <- ls()
+cells <- vector()
 
-for(i in 1:length(list)){
-        cell<-str_sub(list[i],14,39) #look for the length only the last number 
-        cells<-c(cells,cell)
+# For each of these files: extract the portion of their name between the 14th
+# and the 39th character.
+for (i in seq_along(list)) {
+    # look for the length only the last number
+    cell <- str_sub(list[i], 14, 39)
+    cells <- c(cells, cell)
 }
 
-rm(cell,i)
+rm(cell, i)
 
-cells<-unique(cells) #keeps unique identifiers, check that the length is equal to the number of cells if not redo from cells<-vector()
+# keeps unique identifiers, check that the length is equal to the number
+# of cells if not redo from cells<-vector()
+cells <- unique(cells)
 
-for(i in 1:length(cells)){
-        df<-do.call(rbind, mget(ls(pattern = cells[i])))
-        df$cell<-rep(cells[i])
-        name<-paste(cells[i])
-        assign(name,df)
-        rm(df,name)
+# Get all objects corresponding to the same cell ID, bind them,
+# and add a cell ID column.
+for (i in seq_along(cells)) {
+    df <- do.call(rbind, mget(ls(pattern = cells[i])))
+    df$cell <- rep(cells[i])
+    name <- paste(cells[i])
+    assign(name, df)
+    rm(df, name)
 }
 
-rm(list=ls(pattern=".xlsx"))
+rm(list = ls(pattern = ".xlsx"))
 
 ###################################################################
 ############## Third step: put everything together ################
 ###################################################################
 
-dfs = sapply(.GlobalEnv, is.data.frame) 
-data<-do.call(rbind, mget(names(dfs)[dfs]))
+dfs <- sapply(mget(ls()), is.data.frame)
 
-name<-str_sub(cells[1],1,14)
+# Get all tables and bind them
+data <- do.call(rbind, mget(names(dfs)[dfs]))
 
-write.csv(data,file=paste(name,".csv"))
+# Get the sample ID and save a file with this name
+name <- str_sub(cells[1], 1, 14)
 
-rm(list=ls())
+write.csv(data, file = paste(name, ".csv"))
 
+rm(list = ls())
