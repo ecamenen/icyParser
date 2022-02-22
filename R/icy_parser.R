@@ -17,39 +17,13 @@ paths <- file.path("inst", "extdata")
 ######################################################################
 
 # Get all Excel files (with an .xls extension)
-temp <- list.files(file.path(paths, folder), pattern = "*.xls")
+files <- list.files(file.path(paths, folder), pattern = "*.xls") # , recursive = TRUE)
 
-# For each of these files: get their name, read them, format their columns,
-# assign them a different metadata according to the type of data
-# (among contour, all, exclusive, minus or lipofuscin)
-for (i in seq_along(temp)) {
-    name <- temp[i]
-    df <- read_excel(file.path(paths, folder, name))
-    df <- janitor::clean_names(df)
-    if (str_detect(name, "CONTOUR") == TRUE) {
-        df$data <- rep("contour")
-    }
-    if (str_detect(name, "All-CathepsinB") == TRUE) {
-        df$data <- rep("all CATHB")
-    }
-    if (str_detect(name, "Exclusive-CathepsinB") == TRUE) {
-        df$data <- rep("excl CATHB")
-    }
-    if (str_detect(name, "MinusLipofuscin") == TRUE) {
-        df$data <- rep("minus LF")
-    }
-    if (str_detect(name, "Lipofuscin") == TRUE) {
-        df$data <- rep("LF")
-    }
-    name <- paste(name, collapse = "")
-    assign(name, df)
-    rm(df, name)
-}
+# Removes all files that include the name word negative
+negative_files <- grepl("negative", files)
+files <- files[!negative_files]
 
-rm(i, temp, librairies, load_libraries, folder, paths)
-
-# removes all files that include the name word negative
-rm(list = ls(pattern = "negative"))
+rm(i, temp, folder, paths)
 
 # length(temp[!grepl("negative", temp)]) / 5
 # 150 / 5 = 30

@@ -1,7 +1,7 @@
 var_names <- c("contour_px", "interior_px", "perimeter_um", "area_um2")
 cols <- paste(c("mean", "median", "sd"), rep(var_names, each = 3), sep = "_")
 
-load(paste0(file.path(path, file), "4.RData"))
+# load(paste0(file.path(path, file), n_size, ".RData"))
 # data <- read.xlsx(file.path(path, file))
 # data[, 1] <- convert_to_date(data[, 1])
 
@@ -103,4 +103,4 @@ for (i in seq_along(sheets)) {
     writeData(wb, sheets[i], list_tables[[i]])
 }
 
-saveWorkbook(wb, file = paste0(file.path(path, file), "4.xlsx"), overwrite = TRUE)
+saveWorkbook(wb, file = paste0(file.path(path, file), n_size, ".xlsx"), overwrite = TRUE)

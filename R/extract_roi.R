@@ -24,11 +24,9 @@ extract_metada <- function(file_name) {
     exp <- gsub("(\\.lif ?)?- ?(Series0)?", "", exp)
     exp <- str_split(exp, ";")[[1]]
 
-    grp <- toupper(gsub("mutation| ", "", exp[1]))
+    grp <- toupper(gsub("mutation| |point", "", exp[1]))
     if (grp == "CRTL")
         grp <- "CTRL"
-    if (grp == "APP point mutation")
-        grp <- "APP"
     brain_id <- gsub("[.]", "_", exp[2])
     if (brain_id == "BBN9608")
         brain_id <- "A5197_BBN9608"
@@ -39,7 +37,7 @@ extract_metada <- function(file_name) {
 path <- file.path("~", "DATA", "icy")
 folder <- basename(list.dirs(path, recursive = FALSE))[2]
 file_names <- list.files(path = file.path(path, folder), pattern = "^\\d{8}.*.xls", recursive = TRUE)
-file_names <- file_names[!grepl("(egative)|(ctrl ?-?neg)|(APP point mutation)", file_names)]
+file_names <- file_names[!grepl("(egative)|(ctrl ?-?neg)", file_names)]
 
 files <- list()
 
@@ -75,56 +73,10 @@ format_icy <- function(file_name) {
     df$area_um2 <- df$interior_px * CST^2
     df$dataset <- NULL
     df$name <- NULL
+    df$name <- analysis
 
     df[, c(keys, var_names)]
 }
-
-df_t <- data.frame(t(seq(8)))
-for (i in seq_along(file_names)) {
-    print(i)
-    df_t[i, ] <- extract_metada(file_names[i])
-}
-# df_t <- lapply(seq_along(file_names), function(i) extract_metada(file_names[i]))
-
-# df_t <- mclapply(
-#     seq_along(file_names),
-#     FUN = function(i) extract_metada(file_names[i]),
-#     mc.cores = detectCores()
-# )
-# df_t <- t(simplify2array(df_t))
-
-colnames(df_t) <- keys
-df_t[, 1] <- convert_to_date(df_t[, 1] )
-temp <- par()$mar
-par(mar = c(10, par()$mar[-1]))
-for (i in seq(8)) {
-    # df_t[, i] <- as.factor(df_t[, i])
-    df <- table(df_t[, i])
-    print(round(sort(prop.table(df)), 3))
-    plot(df, type = "b", las = 2, ylab = colnames(df_t)[i], col = "red", ylim = c(min(df), max(df)))
-}
-par(mar = temp)
-
-barplot(df )
-pie( table(df_t$cell_id))
-
-ids <- unique(df_t$brain_id)
-grps <- c()
-for (i in ids)
-    grps <- c(grps, df_t[which(df_t$brain_id == i)[1], ]$disease_grp)
-
-data2 <- data.frame(unique(df_t$brain_id), grps)
-write.table(data2, file = "temp.csv", sep = "\t", row.names = FALSE, col.names = FALSE)
-
-# for (i in seq_along(file_names)) {
-#     file_name <- file_names[i]
-#     files[[i]] <- format_icy(file_name)
-# }
-#
-# files <- lapply(
-#     seq_along(file_names),
-#     function(i) format_icy(file_names[i])
-# )
 
 files <- mclapply(
     seq_along(file_names),
@@ -136,7 +88,8 @@ data <- Reduce(rbind, files)
 
 path <- file.path("inst", "extdata")
 file <- "icy_size"
-save(data, file = paste0(file.path(path, file), "3.RData"))
+n_size <- "3"
+save(data, file = paste0(file.path(path, file), n_size, ".RData"))
 
 # write.table(data, file = "icy_size4.csv", sep = "\t", row.names = FALSE)
 # write.xlsx(data, file = file.path(path, file))
