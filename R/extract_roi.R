@@ -10,7 +10,7 @@ library(parallel)
 pathos <- c(c("CTRL", "Crtl", "Ctrl", "ctrl"), "[sS]AD", "D[uU][pP][- ]?APP", "APP(?:mutation)?", "APP point mutation", "DS", "DS-D")
 pathos <- paste(pathos, collapse = "|")
 exp_reg <- paste0("[-_](", pathos, ")[-_ ](.+)")
-meta_reg <- "(^\\d{8})-(IHC) (H\\d{3})(.*)(\\.lif(.*))?(\\d{1,2})(?:\\.cells)? ?[-_]+ICY( -CELL_(\\d))?(_DATA)?_([-\\w]+).xlsx$"
+meta_reg <- "(^\\d{8})-(IHC) (H\\d{3})(.*)(\\.lif(.*))? ?- ?(?:Series0)?(\\d{1,2})(?:\\.cells)? ?[-_]+ICY( -CELL_(\\d))?(_DATA)?_([-\\w]+).xlsx$"
 
 extract_metada <- function(file_name) {
     metadatas <- str_replace(
@@ -21,15 +21,17 @@ extract_metada <- function(file_name) {
     (metadatas <- str_split(metadatas, ";")[[1]])
 
     exp <- gsub(exp_reg, "\\1;\\2", metadatas[4])
-    exp <- gsub("(\\.lif ?)?- ?(Series0)?", "", exp)
+    exp <- gsub("(\\.lif ?)|(Series0)|(mutation)|[-_ .]|(point)", "", exp)
     exp <- str_split(exp, ";")[[1]]
 
-    grp <- toupper(gsub("mutation| |point", "", exp[1]))
+    grp <- toupper(gsub("", "", exp[1]))
     if (grp == "CRTL")
         grp <- "CTRL"
-    brain_id <- gsub("[.]", "_", exp[2])
+    brain_id <- exp[2]
     if (brain_id == "BBN9608")
-        brain_id <- "A5197_BBN9608"
+        brain_id <- "A5197BBN9608"
+    if (metadatas[3] == "H038" && brain_id == "IB6125")
+        brain_id <- "IB6125-9"
 
     c(metadatas[seq(3)], grp, brain_id, metadatas[5:7])
 }
@@ -45,14 +47,14 @@ types_to_modify <- c("CONTOUR", "All-CathepsinB", "Exclusive-CathepsinB", "Minus
 types_modified <- c("contour", "all CATHB", "excl CATHB", "minus LF", "LF")
 
 var_names <- c("contour_px", "interior_px", "perimeter_um", "area_um2")
-keys <- c("date", "analysis", "exp_id", "disease_grp", "brain_id", "roi_id", "cell_id", "modality")
+keys <- c("date", "analysis", "exp_id", "disease_grp", "brain_id", "image_id", "cell_id", "modality")
 col_names <- c(keys[seq(6)], var_names, keys[7:8])
 
 CST <- 0.08154
 
 format_icy <- function(file_name) {
 
-    df <- read.xlsx(file.path(path, folder, file_name))
+    df <- read_xlsx(file.path(path, folder, file_name))
     df <- clean_names(df)
 
     metadatas <- extract_metada(file_name)
@@ -68,14 +70,13 @@ format_icy <- function(file_name) {
     }
 
     df$date <- convert_to_date(df$date)
-    df$roi_id <- as.integer(df$roi_id)
+    df$image_id <- as.integer(df$image_id)
     df$perimeter_um <- df$contour_px * CST
     df$area_um2 <- df$interior_px * CST^2
     df$dataset <- NULL
     df$name <- NULL
-    df$name <- analysis
 
-    df[, c(keys, var_names)]
+    df[, c(keys[-2], var_names)]
 }
 
 files <- mclapply(
