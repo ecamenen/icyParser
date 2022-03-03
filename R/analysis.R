@@ -39,6 +39,7 @@ calculate_stats <- function(df) {
 types <- types_modified[-1]
 diseases <- levels(data$disease_grp)
 
+errors_temp <- list()
 tables <- list()
 i <- 0
 for (m in types) {
@@ -52,25 +53,30 @@ for (m in types) {
                     data$brain_id == b &
                     data$image_id == r
 
-                df <- data[condition & data$modality == m, ]
+                # df <- data[condition & data$modality == m, ]
                 df_contour <- data[condition & data$modality == "contour", ]
 
                 for (c in unique(df_contour$cell_id)) {
-                    roi <- apply(df_contour[df_contour$cell_id == c, var_names], 2, mean) # TODO
-                    row_match <- condition &
-                        data$modality == m &
-                        data$cell_id == c
-                    for (v in var_names) {
-                        list_tables[[1]][
-                            row_match, paste0(v, "_weighted")
-                        ] <- list_tables[[1]][row_match, v] / roi[v]
-                    }
+                    # roi <- df_contour[df_contour$cell_id == c, var_names]
+                    # if (nrow(roi) > 1) {
+                    #     errors_temp <- c(errors_temp, list(roi))
+                    #     roi <- apply(roi, 2, mean)
+                    # }
+                    # TODO
+                    # row_match <- condition &
+                    #     data$modality == m &
+                    #     data$cell_id == c
+                    # for (v in var_names) {
+                    #     list_tables[[1]][
+                    #         row_match, paste0(v, "_weighted")
+                    #     ] <- list_tables[[1]][row_match, v] / roi[v]
+                    # }
                 }
 
-                nb_cells <- sapply(seq(4), count_poncta)
+                nb_ponctas <- sapply(seq(4), count_poncta)
                 nb_poncta_weighted <- Reduce(
                     cbind,
-                    lapply(nb_cells, function(x) x/roi)
+                    lapply(nb_ponctas, function(x) x/roi)
                 )
                 sum_poncta_weighted <- sapply(
                     var_names,
@@ -78,7 +84,7 @@ for (m in types) {
                 )
 
                 stats <- calculate_stats(list_tables[[1]][condition & data$modality == m, ])
-                tables[[i]] <- c(d, b, r, m, t(nb_cells), sum(nb_cells, na.rm = TRUE), as.matrix(nb_poncta_weighted), sum_poncta_weighted, sum(nb_cells > 0, na.rm = TRUE), stats)
+                tables[[i]] <- c(d, b, r, m, t(nb_ponctas), sum(nb_ponctas, na.rm = TRUE), as.matrix(nb_poncta_weighted), sum_poncta_weighted, sum(nb_poncta > 0, na.rm = TRUE), stats)
             }
         }
     }

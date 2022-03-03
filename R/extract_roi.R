@@ -56,7 +56,7 @@ CST <- 0.08154
 
 format_icy <- function(file_name) {
 
-    df <- read_xlsx(file.path(path, folder, file_name))
+    df <- read_excel(file.path(path, folder, file_name))
     df <- clean_names(df)
 
     metadatas <- extract_metada(file_name)
