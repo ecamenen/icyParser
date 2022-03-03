@@ -32,12 +32,15 @@ extract_metada <- function(file_name) {
         brain_id <- "A5197BBN9608"
     if (metadatas[3] == "H038" && brain_id == "IB6125")
         brain_id <- "IB6125-9"
+    if (metadatas[6] == "")
+        metadatas[6] <- "1"
 
     c(metadatas[seq(3)], grp, brain_id, metadatas[5:7])
 }
 
 path <- file.path("~", "DATA", "icy")
 folder <- basename(list.dirs(path, recursive = FALSE))[2]
+n_size <- gsub("Cathepsin-size0(\\d)", "\\1", folder)
 file_names <- list.files(path = file.path(path, folder), pattern = "^\\d{8}.*.xls", recursive = TRUE)
 file_names <- file_names[!grepl("(egative)|(ctrl ?-?neg)", file_names)]
 
@@ -48,7 +51,6 @@ types_modified <- c("contour", "all CATHB", "excl CATHB", "minus LF", "LF")
 
 var_names <- c("contour_px", "interior_px", "perimeter_um", "area_um2")
 keys <- c("date", "analysis", "exp_id", "disease_grp", "brain_id", "image_id", "cell_id", "modality")
-col_names <- c(keys[seq(6)], var_names, keys[7:8])
 
 CST <- 0.08154
 
@@ -89,7 +91,6 @@ data <- Reduce(rbind, files)
 
 path <- file.path("inst", "extdata")
 file <- "icy_size"
-n_size <- "3"
 save(data, file = paste0(file.path(path, file), n_size, ".RData"))
 
 # write.table(data, file = "icy_size4.csv", sep = "\t", row.names = FALSE)
