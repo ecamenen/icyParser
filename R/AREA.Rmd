@@ -29,6 +29,8 @@ demo <- demo %>% select(EXCEL, BRAINBANK, GENDER, AGE)
 demo <- demo %>% rename(ID = EXCEL)
 data <- merge(data, demo, by.x = "brain_id", by.y = "ID")
 data <- data %>%  mutate_at(vars(GENDER, BRAINBANK, brain_id, disease_grp, modality), factor)
+centre <- c("A", "B", "C", "IOP", "L", "P", "Q", "R", "R/M")
+levels(data$BRAINBANK) <- centre
 ```
 
 # Résumé pour tous les individus
@@ -74,6 +76,25 @@ p
 ggplotly(p)
 
 ```
+
+## Boxplot par centre
+```{r}
+# mean by group
+data2 <- data %>% filter(modality == "all CATHB")
+data2 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(area_um2, na.rm = TRUE))
+group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
+
+
+data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+data2 <- merge(data2, unique(data[, c("brain_id", "BRAINBANK")]), by = "brain_id")
+data2
+
+p <- ggboxplot(data2, x = "disease_grp", y = "mean", add = "jitter", color = "disease_grp")+
+  stat_compare_means(ref.group = "CTRL", method = "t.test", label = "p.signif") +
+  facet_wrap(~ BRAINBANK)
+p
+```
+
 
 ## Effet centre
 ```{r}
@@ -221,4 +242,98 @@ data2 <- data %>% filter(modality == "all CATHB" & disease_grp %in% c("DUPAPP", 
 mod <- lmerTest::lmer(log(area_um2) ~ disease_grp + AGE + GENDER + (1 | brain_id), data = data2)
 summary(mod)
 ggResidpanel::resid_panel(mod)
+```
+
+# Traitement vs contrôle
+```{r}
+data2 <- data %>% filter(modality == "all CATHB" & BRAINBANK != "A")
+data2$disease_grp <- relevel(data2$disease_grp, ref = "CTRL")
+mod <- lmer(log(area_um2) ~ disease_grp + GENDER +  (1 | brain_id), data = data2)
+Anova(mod)
+
+table(data[data$modality=="all CATHB",]$brain_id)
+
+
+
+emmeans::emmeans(mod, trt.vs.ctrl ~ disease_grp)$contrasts
+
+data2 <- data %>% filter(modality == "all CATHB")
+data2 %>% ggplot(aes(x = brain_id, y = log(area_um2), color = BRAINBANK)) +
+  geom_boxplot(outlier.shape = NA) +
+  facet_wrap(~ disease_grp, scales = "free") +
+  theme_classic()
+```
+
+# Avec la variable nb_poncta_area_um2_weighted
+```{r}
+data2 <- data %>% filter(modality == "all CATHB")
+data2$disease_grp <- relevel(data2$disease_grp, ref = "CTRL")
+mod <- lmerTest::lmer(nb_poncta_area_um2_weighted ~ disease_grp +  (1 | brain_id), data = data2)
+ggResidpanel::resid_panel(mod)
+summary(mod)
+Anova(mod)
+emmeans::emmeans(mod, trt.vs.ctrl ~ disease_grp)$contrasts
+
+```
+
+
+# En modifiant le traitement d'image
+T-test entre chaque maladie et le groupe contrôle pour les 
+```{r}
+# Type de traitement d'image
+# "all CATHB"  "contour"    "excl CATHB" "LF"         "minus LF"  
+levels(data$modality)
+# "contour"
+data2 <- data %>% filter(modality == "contour")
+data2 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(area_um2, na.rm = TRUE))
+group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
+data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+p <- ggboxplot(data2, x = "disease_grp", y = "mean", add = "jitter", color = "disease_grp")+
+  stat_compare_means(ref.group = "CTRL", method = "t.test", label = "p.signif")
+p
+# "excl CATHB"
+data2 <- data %>% filter(modality == "excl CATHB")
+data2 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(area_um2, na.rm = TRUE))
+group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
+data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+p <- ggboxplot(data2, x = "disease_grp", y = "mean", add = "jitter", color = "disease_grp")+
+  stat_compare_means(ref.group = "CTRL", method = "t.test", label = "p.signif")
+p
+# "LF"
+data2 <- data %>% filter(modality == "excl CATHB")
+data2 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(area_um2, na.rm = TRUE))
+group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
+data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+p <- ggboxplot(data2, x = "disease_grp", y = "mean", add = "jitter", color = "disease_grp")+
+  stat_compare_means(ref.group = "CTRL", method = "t.test", label = "p.signif")
+p
+```
+
+# Size 4
+```{r}
+# Importation des datas
+data <- openxlsx::read.xlsx("/home/baptiste.criniere/Documents/PB_AD_KA/Data/icy_size4.xlsx", sheet = 1)
+demo <- openxlsx::read.xlsx("/home/baptiste.criniere/Documents/PB_AD_KA/Data/Demographics_11-2021_Amal_modified.xlsx", sheet = 3, startRow = 2)
+demo <- demo %>% select(EXCEL, BRAINBANK, GENDER, AGE)
+demo <- demo %>% rename(ID = EXCEL)
+data <- merge(data, demo, by.x = "brain_id", by.y = "ID")
+data <- data %>%  mutate_at(vars(GENDER, BRAINBANK, brain_id, disease_grp, modality), factor)
+```
+
+## Effet de la maladie
+```{r}
+# mean by group
+data2 <- data %>% filter(modality == "all CATHB")
+data2 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(area_um2, na.rm = TRUE))
+group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
+
+
+data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+
+
+p <- ggboxplot(data2, x = "disease_grp", y = "mean", add = "jitter", color = "disease_grp")+
+  stat_compare_means(ref.group = "CTRL", method = "t.test", label = "p.signif")
+p
+ggplotly(p)
+
 ```
