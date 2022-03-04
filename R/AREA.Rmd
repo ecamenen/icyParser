@@ -1,9 +1,224 @@
 ---
 title: "Analyse_Area"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r, echo = FALSE, warning = FALSE, message = FALSE, results = FALSE}
+# Librairies
+library(tidyverse)
+library(openxlsx)
+library(lmerTest)
+library(lme4)
+library(kableExtra)
+library(ggpubr)
+library(rstatix)
+library(car)
+library(plotly)
+library(sjPlot)
+
+# Importation des datas
+data <- openxlsx::read.xlsx("/home/baptiste.criniere/Documents/PB_AD_KA/Data/icy_size3.xlsx", sheet = 1)
+demo <- openxlsx::read.xlsx("/home/baptiste.criniere/Documents/PB_AD_KA/Data/Demographics_11-2021_Amal_modified.xlsx", sheet = 3, startRow = 2)
+demo <- demo %>% select(EXCEL, BRAINBANK, GENDER, AGE)
+demo <- demo %>% rename(ID = EXCEL)
+data <- merge(data, demo, by.x = "brain_id", by.y = "ID")
+data <- data %>%  mutate_at(vars(GENDER, BRAINBANK, brain_id, disease_grp, modality), factor)
+```
+
+# Résumé pour tous les individus
+```{r results = "asis"}
+data2 <- data %>% filter(modality == "all CATHB")
+smmry <- function(x) c(summary(x), sd = sd(x))
+a <- as.data.frame(do.call( rbind,tapply(data2$area_um2, data2$brain_id, smmry)))
+a <- a[,-7]
+
+round_df <- function(x, digits) {
+    # round all numeric variables
+    # x: data frame 
+    # digits: number of digits to round
+    numeric_columns <- sapply(x, mode) == 'numeric'
+    x[numeric_columns] <-  round(x[numeric_columns], digits)
+    x
+}
+
+a <- round_df(a, 4)
+a %>% knitr::kable()
+
+# Analyse des outliers
+# L'individu 58224 à un max 3.5 et la moyenne la plus élevé
+table(is_extreme(data2[data2$brain_id == "58224",]$area_um2))
+boxplot(data2[data2$brain_id == "58224",]$area_um2)
+```
+
+# En travaillant sur les moyennes
+## Effet de la maladie
+```{r}
+# mean by group
+data2 <- data %>% filter(modality == "all CATHB")
+data2 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(area_um2, na.rm = TRUE))
+group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
+
+
+data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+
+
+p <- ggboxplot(data2, x = "disease_grp", y = "mean", add = "jitter", color = "disease_grp")+
+  stat_compare_means(ref.group = "CTRL", method = "t.test", label = "p.signif")
+p
+ggplotly(p)
+
+```
+
+## Effet centre
+```{r}
+centre <- c("A", "B", "C", "IOP", "L", "P", "Q", "R", "R/M")
+levels(data$BRAINBANK) <- centre
+
+data2 <- data %>% filter(modality == "all CATHB")
+data2 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(area_um2, na.rm = TRUE))
+group <- data %>% group_by(brain_id, BRAINBANK) %>% summarize()
+data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+
+res.aov <- data2 %>% anova_test(mean ~ BRAINBANK)
+pwc <- data2 %>% tukey_hsd(mean ~ BRAINBANK)
+pwc <- pwc %>% add_xy_position(x = "BRAINBANK")
+ggboxplot(data2, x = "BRAINBANK", y = "mean", add = "jitter", color = "BRAINBANK")+
+stat_pvalue_manual(pwc, hide.ns = TRUE) +
+  labs(
+    subtitle = get_test_label(res.aov, detailed = TRUE),
+    caption = get_pwc_label(pwc)
+    )
+```
+
+## Effet sexe
+```{r}
+# mean by group
+data2 <- data %>% filter(modality == "all CATHB")
+data2 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(area_um2, na.rm = TRUE))
+group <- data %>% group_by(brain_id, GENDER) %>% summarize()
+
+
+data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+
+
+ggboxplot(data2, x = "GENDER", y = "mean", add = "jitter", color = "GENDER")+
+  stat_compare_means(ref.group = "F", method = "t.test", label = "p.signif")
+```
+
+# Modélisation all CATHB
+On s'intéresse d'abord à la différence entre le groupe des contrôles.
+## Analyse des CTRL
+On va regarder les contrôles et regarder s'il y a difference lié au centre, au sexe ou à l'âge.
+Il n'y pas de différence lié à ces variables.
+```{r}
+# Représentation graphique
+# Data management
+data2 <- data %>% filter(disease_grp %in% c("CTRL") & modality == "all CATHB")
+summary(data2$area_um2)
+
+# ordre <- data2 %>% arrange(disease_grp)
+# ordre$brain_id <- factor(ordre$brain_id)
+# str(ordre$brain_id)
+# a <- unique(ordre$brain_id)
+# data2$brain_id <- factor(data2$brain_id, levels = a)
+
+# Histogramme
+data2 %>% ggplot(aes(x = log(area_um2), fill = BRAINBANK)) +
+  geom_histogram() +
+  facet_wrap(~ brain_id, ncol = 5) +
+  theme_bw() +
+  scale_fill_manual(values = c("darkblue", "darkred", "darkolivegreen3"))
+
+# Boites à moustache
+# mean by group
+data2 <- data %>% filter(disease_grp %in% c("CTRL") & modality == "all CATHB")
+data2 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(area_um2, na.rm = TRUE))
+group <- data %>% group_by(brain_id, BRAINBANK) %>% summarize()
+data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+ggboxplot(data2, x = "BRAINBANK", y = "mean", add = "jitter", color = "BRAINBANK")+
+  stat_compare_means(ref.group = "F", method = "t.test", label = "p.signif")
+
+# On teste les effets de l'âge, du sexe et du centre sur le groupe contrôle
+data2 <- data %>% filter(modality == "all CATHB" & disease_grp %in% c("CTRL"))
+mod <- lmerTest::lmer(log(area_um2) ~  BRAINBANK + GENDER + AGE + (1 | brain_id), data = data2)
+summary(mod)
+ggResidpanel::resid_panel(mod)
+```
+
+## CTRL vs SAD
+Pas d'effet significatif du groupe sur la variable AREA, cependant lorsque l'on retire le groupe belge il y a un effet significatif
+```{r}
+# Modèle mixte complet en corrige selon l'age et le sexe des individus
+# On applique la fonction log à notre outcome
+# On a pas d'effet significatif entre le groupe des contrôles et celui des SAD
+data2 <- data %>% filter(modality == "all CATHB" & disease_grp %in% c("SAD", "CTRL"))
+mod <- lmerTest::lmer(log(area_um2) ~ disease_grp + AGE + GENDER + BRAINBANK + (1 | brain_id), data = data2)
+summary(mod)
+ggResidpanel::resid_panel(mod)
+
+# Modèle mixte complet en supprimant les individus appartenant au centre belge en corrige selon l'age et le sexe des individus
+# Lorsque l'on supprime les individus appartenant au centre belge on observe un effet significatif (p*)
+data2 <- data %>% filter(modality == "all CATHB" & disease_grp %in% c("SAD", "CTRL"))
+data2 <- data2 %>% filter(BRAINBANK %in% c("P", "B"))
+mod <- lmerTest::lmer(log(area_um2) ~ disease_grp + AGE + GENDER + BRAINBANK + (1 | brain_id), data = data2)
+summary(mod)
+ggResidpanel::resid_panel(mod)
+
+# Explications
+# Ca doit être dû à un cas chez les Alzheimers
+# Test en supprimant "58224" ça change rien
+data2 <- data %>% filter(modality == "all CATHB" & disease_grp %in% c("SAD", "CTRL"))
+data2 <- data2 %>% filter(brain_id != "58224")
+mod <- lmerTest::lmer(log(area_um2) ~ disease_grp + AGE + GENDER + (1 | brain_id), data = data2)
+summary(mod)
+# Le problème c'est les trois individus cas du groupe des belges ils ont des valeurs très élevés.
+# 58344 58224 54694
+```
+
+## CTRL vs APP
+```{r}
+# Modèle mixte complet en corrige selon l'age et le sexe des individus
+# On applique la fonction log à notre outcome
+# On observe un effet significatif du groupe sur le log(AREA). Ici on ne tient pas compte du centre de l'étude.
+# En effet les centres sont
+data2 <- data %>% filter(modality == "all CATHB" & disease_grp %in% c("APP", "CTRL"))
+mod <- lmerTest::lmer(log(area_um2) ~ disease_grp + AGE + GENDER + (1 | brain_id), data = data2)
+summary(mod)
+ggResidpanel::resid_panel(mod)
+```
+
+## CTRL vs DS
+```{r}
+# Modèle mixte complet en corrige selon l'age et le sexe des individus
+# Pas de différence significative entre CTRL et DS
+data2 <- data %>% filter(modality == "all CATHB" & disease_grp %in% c("DS", "CTRL"))
+mod <- lmerTest::lmer(log(area_um2) ~ disease_grp + AGE + GENDER + (1 | brain_id), data = data2)
+summary(mod)
+ggResidpanel::resid_panel(mod)
+```
+
+## CTRL vs DSD
+```{r}
+# Modèle mixte complet en corrige selon l'age et le sexe des individus
+# Pas de différence significative entre CTRL et DSD
+data2 <- data %>% filter(modality == "all CATHB" & disease_grp %in% c("DSD", "CTRL"))
+mod <- lmerTest::lmer(log(area_um2) ~ disease_grp + AGE + GENDER + (1 | brain_id), data = data2)
+summary(mod)
+ggResidpanel::resid_panel(mod)
+```
+
+## CTRL vs APPP
+```{r}
+# Modèle mixte complet en corrige selon l'age et le sexe des individus
+# Pas de différence significative entre CTRL et DSD
+data2 <- data %>% filter(modality == "all CATHB" & disease_grp %in% c("DUPAPP", "CTRL"))
+mod <- lmerTest::lmer(log(area_um2) ~ disease_grp + AGE + GENDER + (1 | brain_id), data = data2)
+summary(mod)
+ggResidpanel::resid_panel(mod)
+```
