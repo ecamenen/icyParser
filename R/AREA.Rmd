@@ -187,7 +187,7 @@ ggResidpanel::resid_panel(mod)
 # Lorsque l'on supprime les individus appartenant au centre belge on observe un effet significatif (p*)
 data2 <- data %>% filter(modality == "all CATHB" & disease_grp %in% c("SAD", "CTRL"))
 data2 <- data2 %>% filter(BRAINBANK %in% c("P", "B"))
-mod <- lmerTest::lmer(log(area_um2) ~ disease_grp + AGE + GENDER + BRAINBANK + (1 | brain_id), data = data2)
+mod <- lmerTest::lmer(log(area_um2) ~ disease_grp + AGE + GENDER  + (1 | brain_id), data = data2)
 summary(mod)
 ggResidpanel::resid_panel(mod)
 
@@ -268,45 +268,51 @@ data2 %>% ggplot(aes(x = brain_id, y = log(area_um2), color = BRAINBANK)) +
 ```{r}
 data2 <- data %>% filter(modality == "all CATHB")
 data2$disease_grp <- relevel(data2$disease_grp, ref = "CTRL")
-mod <- lmerTest::lmer(nb_poncta_area_um2_weighted ~ disease_grp +  (1 | brain_id), data = data2)
+mod <- lmerTest::lmer(sqrt(nb_poncta_area_um2_weighted) ~ disease_grp + AGE + GENDER +  (1 | brain_id), data = data2)
 ggResidpanel::resid_panel(mod)
 summary(mod)
 Anova(mod)
 emmeans::emmeans(mod, trt.vs.ctrl ~ disease_grp)$contrasts
 
+
+data2 <- data %>% filter(modality == "all CATHB" & disease_grp %in% c("DSD", "CTRL"))
+mod <- lmerTest::lmer(log(area_um2) ~ disease_grp + AGE + GENDER + (1 | brain_id), data = data2)
+summary(mod)
+ggResidpanel::resid_panel(mod)
+
+
+
+
+mod <- lm(sqrt(nb_poncta_area_um2_weighted) ~ brain_id + disease_grp + AGE + GENDER, data = data2)
+summary(mod)
 ```
 
 
 # En modifiant le traitement d'image
-T-test entre chaque maladie et le groupe contrôle pour les 
 ```{r}
 # Type de traitement d'image
 # "all CATHB"  "contour"    "excl CATHB" "LF"         "minus LF"  
 levels(data$modality)
 # "contour"
-data2 <- data %>% filter(modality == "contour")
-data2 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(area_um2, na.rm = TRUE))
-group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
-data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
-p <- ggboxplot(data2, x = "disease_grp", y = "mean", add = "jitter", color = "disease_grp")+
-  stat_compare_means(ref.group = "CTRL", method = "t.test", label = "p.signif")
-p
-# "excl CATHB"
+# Traitement vs contrôle
+
 data2 <- data %>% filter(modality == "excl CATHB")
-data2 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(area_um2, na.rm = TRUE))
-group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
-data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
-p <- ggboxplot(data2, x = "disease_grp", y = "mean", add = "jitter", color = "disease_grp")+
-  stat_compare_means(ref.group = "CTRL", method = "t.test", label = "p.signif")
-p
-# "LF"
-data2 <- data %>% filter(modality == "excl CATHB")
-data2 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(area_um2, na.rm = TRUE))
-group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
-data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
-p <- ggboxplot(data2, x = "disease_grp", y = "mean", add = "jitter", color = "disease_grp")+
-  stat_compare_means(ref.group = "CTRL", method = "t.test", label = "p.signif")
-p
+data2$disease_grp <- relevel(data2$disease_grp, ref = "CTRL")
+mod <- lmer(log(area_um2) ~ disease_grp + GENDER  + AGE + (1 | brain_id), data = data2)
+Anova(mod)
+emmeans::emmeans(mod, trt.vs.ctrl ~ disease_grp)$contrasts
+
+data2 <- data %>% filter(modality == "LF")
+data2$disease_grp <- relevel(data2$disease_grp, ref = "CTRL")
+mod <- lmer(log(area_um2) ~ disease_grp + GENDER  + AGE + (1 | brain_id), data = data2)
+Anova(mod)
+emmeans::emmeans(mod, trt.vs.ctrl ~ disease_grp)$contrasts
+
+data2 <- data %>% filter(modality == "minus LF")
+data2$disease_grp <- relevel(data2$disease_grp, ref = "CTRL")
+mod <- lmer(log(area_um2) ~ disease_grp + GENDER   + AGE +  (1 | brain_id), data = data2)
+Anova(mod)
+emmeans::emmeans(mod, trt.vs.ctrl ~ disease_grp)$contrasts
 ```
 
 # Size 4
@@ -322,18 +328,32 @@ data <- data %>%  mutate_at(vars(GENDER, BRAINBANK, brain_id, disease_grp, modal
 
 ## Effet de la maladie
 ```{r}
-# mean by group
+# Type de traitement d'image
+# "all CATHB"  "contour"    "excl CATHB" "LF"         "minus LF"  
+levels(data$modality)
+# "contour"
+# Traitement vs contrôle
 data2 <- data %>% filter(modality == "all CATHB")
-data2 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(area_um2, na.rm = TRUE))
-group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
+data2$disease_grp <- relevel(data2$disease_grp, ref = "CTRL")
+mod <- lmer(log(area_um2) ~ disease_grp + GENDER  + AGE  + (1 | brain_id), data = data2)
+Anova(mod)
+emmeans::emmeans(mod, trt.vs.ctrl ~ disease_grp)$contrasts
 
+data2 <- data %>% filter(modality == "excl CATHB")
+data2$disease_grp <- relevel(data2$disease_grp, ref = "CTRL")
+mod <- lmer(log(area_um2) ~ disease_grp + GENDER  + AGE  + (1 | brain_id), data = data2)
+Anova(mod)
+emmeans::emmeans(mod, trt.vs.ctrl ~ disease_grp)$contrasts
 
-data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+data2 <- data %>% filter(modality == "LF")
+data2$disease_grp <- relevel(data2$disease_grp, ref = "CTRL")
+mod <- lmer(log(area_um2) ~ disease_grp + GENDER  + AGE + (1 | brain_id), data = data2)
+Anova(mod)
+emmeans::emmeans(mod, trt.vs.ctrl ~ disease_grp)$contrasts
 
-
-p <- ggboxplot(data2, x = "disease_grp", y = "mean", add = "jitter", color = "disease_grp")+
-  stat_compare_means(ref.group = "CTRL", method = "t.test", label = "p.signif")
-p
-ggplotly(p)
-
+data2 <- data %>% filter(modality == "minus LF")
+data2$disease_grp <- relevel(data2$disease_grp, ref = "CTRL")
+mod <- lmer(log(area_um2) ~ disease_grp + GENDER   + AGE +  (1 | brain_id), data = data2)
+Anova(mod)
+emmeans::emmeans(mod, trt.vs.ctrl ~ disease_grp)$contrasts
 ```
