@@ -1,0 +1,94 @@
+---
+title: "Analyse"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE, results = FALSE}
+# Librairies
+library(tidyverse)
+library(openxlsx)
+library(lmerTest)
+library(lme4)
+library(kableExtra)
+library(ggpubr)
+library(rstatix)
+library(car)
+library(plotly)
+library(sjPlot)
+library(htmlwidgets)
+# Importation des datas
+data <- openxlsx::read.xlsx("/home/baptiste.criniere/Documents/PB_AD_KA/Data/icy_size3.xlsx", sheet = 1)
+demo <- openxlsx::read.xlsx("/home/baptiste.criniere/Documents/PB_AD_KA/Data/Demographics_11-2021_Amal_modified.xlsx", sheet = 3, startRow = 2)
+demo <- demo %>% select(EXCEL, BRAINBANK, GENDER, AGE)
+demo <- demo %>% rename(ID = EXCEL)
+data <- merge(data, demo, by.x = "brain_id", by.y = "ID")
+data <- data %>%  mutate_at(vars(GENDER, BRAINBANK, brain_id, disease_grp, modality), factor)
+centre <- c("A", "B", "C", "IOP", "L", "P", "Q", "R", "R/M")
+levels(data$BRAINBANK) <- centre
+```
+
+# All CATHB
+## Boxplot 
+```{r echo = FALSE, message=FALSE,  warning=FALSE}
+# Analyse avec la modalité All CATHB
+# On fait la moyenne des airs des Cathepsine pour une chaque cellule
+# Ensuite on fait des airs des cellules pour un même individu
+data2 <- data %>% filter(modality == "all CATHB")
+data2 <- data2 %>% group_by(brain_id, image_id, cell_id) %>% summarize(moyenne = mean(area_um2, na.rm = TRUE))
+group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
+data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+
+data3 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(moyenne, na.rm = TRUE))
+data3 <- merge(data3, group, by.x = "brain_id", by.y = "brain_id")
+p <- data3 %>% ggplot(aes(x = disease_grp, y = mean, text = brain_id))+
+  geom_boxplot()+
+  geom_jitter()+
+  theme_classic()
+l <- plotly::ggplotly(p, tooltip="text")
+htmltools::tagList(l)
+```
+
+# minus LF
+## Boxplot 
+```{r echo = FALSE, message=FALSE,  warning=FALSE}
+# Analyse avec la modalité minus LF
+# Ensuite on fait des airs des cellules pour un même individu
+data2 <- data %>% filter(modality == "minus LF")
+data2 <- data2 %>% group_by(brain_id, image_id, cell_id) %>% summarize(moyenne = mean(area_um2, na.rm = TRUE))
+group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
+data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+
+data3 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(moyenne, na.rm = TRUE))
+data3 <- merge(data3, group, by.x = "brain_id", by.y = "brain_id")
+p <- data3 %>% ggplot(aes(x = disease_grp, y = mean, text = brain_id))+
+  geom_boxplot()+
+  geom_jitter()+
+  theme_classic()
+l <- plotly::ggplotly(p, tooltip="text")
+htmltools::tagList(l)
+```
+
+
+# excl CATHB
+## Boxplot 
+```{r echo = FALSE, message=FALSE,  warning=FALSE}
+# Analyse avec la modalité excl CATHB
+# Ensuite on fait des airs des cellules pour un même individu
+data2 <- data %>% filter(modality == "excl CATHB")
+data2 <- data2 %>% group_by(brain_id, image_id, cell_id) %>% summarize(moyenne = mean(area_um2, na.rm = TRUE))
+group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
+data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+
+data3 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(moyenne, na.rm = TRUE))
+data3 <- merge(data3, group, by.x = "brain_id", by.y = "brain_id")
+p <- data3 %>% ggplot(aes(x = disease_grp, y = mean, text = brain_id))+
+  geom_boxplot()+
+  geom_jitter()+
+  theme_classic()
+l <- plotly::ggplotly(p, tooltip="text")
+htmltools::tagList(l)
+```
