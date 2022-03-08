@@ -31,8 +31,8 @@ centre <- c("A", "B", "C", "IOP", "L", "P", "Q", "R", "R/M")
 levels(data$BRAINBANK) <- centre
 ```
 
-# All CATHB
-## Boxplot 
+# Results {.tabset}
+## All CATHB 
 ```{r echo = FALSE, message=FALSE,  warning=FALSE}
 # Analyse avec la modalité All CATHB
 # On fait la moyenne des airs des Cathepsine pour une chaque cellule
@@ -52,8 +52,26 @@ l <- plotly::ggplotly(p, tooltip="text")
 htmltools::tagList(l)
 ```
 
-# minus LF
-## Boxplot 
+## LF
+```{r echo = FALSE, message=FALSE,  warning=FALSE}
+# Analyse avec la modalité minus LF
+# Ensuite on fait des airs des cellules pour un même individu
+data2 <- data %>% filter(modality == "LF")
+data2 <- data2 %>% group_by(brain_id, image_id, cell_id) %>% summarize(Somme = sum(area_um2, na.rm = TRUE))
+group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
+data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+
+data3 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(Somme, na.rm = TRUE))
+data3 <- merge(data3, group, by.x = "brain_id", by.y = "brain_id")
+p <- data3 %>% ggplot(aes(x = disease_grp, y = mean, text = brain_id))+
+  geom_boxplot()+
+  geom_jitter()+
+  theme_classic()
+l <- plotly::ggplotly(p, tooltip="text")
+htmltools::tagList(l)
+```
+
+## minus LF
 ```{r echo = FALSE, message=FALSE,  warning=FALSE}
 # Analyse avec la modalité minus LF
 # Ensuite on fait des airs des cellules pour un même individu
@@ -73,8 +91,7 @@ htmltools::tagList(l)
 ```
 
 
-# excl CATHB
-## Boxplot 
+## excl CATHB
 ```{r echo = FALSE, message=FALSE,  warning=FALSE}
 # Analyse avec la modalité excl CATHB
 # Ensuite on fait des airs des cellules pour un même individu
@@ -92,3 +109,68 @@ p <- data3 %>% ggplot(aes(x = disease_grp, y = mean, text = brain_id))+
 l <- plotly::ggplotly(p, tooltip="text")
 htmltools::tagList(l)
 ```
+
+# Control vs disease
+
+
+# Supplementary {.tabset}
+```{r echo = FALSE, message=FALSE,  warning=FALSE}
+round_df <- function(x, digits) {
+    # round all numeric variables
+    # x: data frame 
+    # digits: number of digits to round
+    numeric_columns <- sapply(x, mode) == 'numeric'
+    x[numeric_columns] <-  round(x[numeric_columns], digits)
+    x
+}
+smmry <- function(x) c(summary(x), sd = sd(x,  na.rm = TRUE))
+
+```
+
+
+## All CATHB 
+```{r echo = FALSE, message=FALSE,  warning=FALSE, results = "asis"}
+data2 <- data %>% filter(modality == "all CATHB")
+data2 <- data2 %>% group_by(brain_id, image_id, cell_id) %>% summarize(moyenne = mean(area_um2, na.rm = TRUE))
+a <- as.data.frame(do.call(rbind,tapply(data2$moyenne, data2$brain_id, smmry)))
+a <- a[,-7]
+a <- round_df(a, 3)
+
+a %>% knitr::kable() %>%  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+## LF 
+```{r echo = FALSE, message=FALSE,  warning=FALSE, results = "asis"}
+data2 <- data %>% filter(modality == "LF")
+data2 <- data2 %>% group_by(brain_id, image_id, cell_id) %>% summarize(moyenne = sum(area_um2, na.rm = TRUE))
+a <- as.data.frame(do.call(rbind,tapply(data2$moyenne, data2$brain_id, smmry)))
+a <- a[,-7]
+
+a <- round_df(a, 3)
+a %>% knitr::kable() %>%  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+## minus LF 
+```{r echo = FALSE, message=FALSE,  warning=FALSE, results = "asis"}
+data2 <- data %>% filter(modality == "minus LF")
+data2 <- data2 %>% group_by(brain_id, image_id, cell_id) %>% summarize(moyenne = mean(area_um2, na.rm = TRUE))
+a <- as.data.frame(do.call(rbind,tapply(data2$moyenne, data2$brain_id, smmry)))
+a <- a[,-7]
+
+
+a <- round_df(a, 3)
+a %>% knitr::kable() %>%  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+## excl CATHB 
+```{r echo = FALSE, message=FALSE,  warning=FALSE, results = "asis"}
+data2 <- data %>% filter(modality == "excl CATHB")
+data2 <- data2 %>% group_by(brain_id, image_id, cell_id) %>% summarize(moyenne = mean(area_um2, na.rm = TRUE))
+a <- as.data.frame(do.call(rbind,tapply(data2$moyenne, data2$brain_id, smmry)))
+a <- a[,-7]
+
+
+a <- round_df(a, 3)
+a %>% knitr::kable() %>%  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
