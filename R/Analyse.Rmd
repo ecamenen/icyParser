@@ -257,6 +257,28 @@ l <- plotly::ggplotly(p, tooltip="text")
 htmltools::tagList(l)
 ```
 
+### nb_poncta_area_um2_weighted
+```{r echo = FALSE, message=FALSE,  warning=FALSE}
+# Analyse avec la modalité All CATHB
+# On fait la moyenne des airs des Cathepsine pour une chaque cellule
+# Ensuite on fait des airs des cellules pour un même individu
+data2 <- data %>% filter(modality == "all CATHB")
+data2 <- data2 %>% select(brain_id, image_id, cell_id, nb_poncta_area_um2_weighted)
+data2 <- unique(data2)
+
+group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
+data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+
+data3 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(nb_poncta_area_um2_weighted, na.rm = TRUE))
+data3 <- merge(data3, group, by.x = "brain_id", by.y = "brain_id")
+p <- data3 %>% ggplot(aes(x = disease_grp, y = mean, text = brain_id))+
+  geom_boxplot()+
+  geom_jitter()+
+  theme_classic()
+l <- plotly::ggplotly(p, tooltip="text")
+htmltools::tagList(l)
+```
+
 
 # Boxplot {.tabset}
 ## Size 3 {.tabset}
@@ -596,10 +618,22 @@ mod4 <- lmer(moyenne ~ disease_grp  + (1 | brain_id), data = data2)
 # performance::icc(mod4)
 # emmeans::emmeans(mod4, trt.vs.ctrl ~ disease_grp)$contrasts
 
+## Nb_poncta_area_um2_weighted
+data2 <- data %>% filter(modality == "all CATHB")
+data2 <- data2 %>% select(brain_id, image_id, cell_id, nb_poncta_area_um2_weighted)
+data2 <- unique(data2)
+group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
+data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+data2$disease_grp <- relevel(data2$disease_grp, ref = "CTRL")
+mod5 <- lmer(nb_poncta_area_um2_weighted ~ disease_grp  + (1 | brain_id), data = data2)
+# ggResidpanel::resid_panel(mod5)
+# Anova(mod5)
+# performance::icc(mod5)
+# emmeans::emmeans(mod5, trt.vs.ctrl ~ disease_grp)$contrasts
 
 ## Représentation graphique
-texreg::knitreg(list(mod1, mod2, mod3, mod4),
-                custom.model.names = c("Model all CATHB", "Model LF", "Model excl CATHB", "Model minus LF"),
+texreg::knitreg(list(mod1, mod2, mod3, mod4, mod5),
+                custom.model.names = c("Model all CATHB", "Model LF", "Model excl CATHB", "Model minus LF", "Model nb_poncta"),
                 caption            = "CTRL vs Disease for each modality",
                 caption.above      = TRUE,
                 single.row         = TRUE,
