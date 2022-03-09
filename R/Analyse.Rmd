@@ -111,6 +111,45 @@ l <- plotly::ggplotly(p, tooltip="text")
 htmltools::tagList(l)
 ```
 
+### contour
+```{r echo = FALSE, message=FALSE,  warning=FALSE}
+# Analyse avec la modalité excl CATHB
+# Ensuite on fait des airs des cellules pour un même individu
+data2 <- data %>% filter(modality == "contour")
+data2 <- data2 %>% group_by(brain_id) %>% summarize(moyenne = mean(area_um2, na.rm = TRUE))
+group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
+data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+
+p <- data2 %>% ggplot(aes(x = disease_grp, y = moyenne, text = brain_id))+
+  geom_boxplot()+
+  geom_jitter()+
+  theme_classic()
+l <- plotly::ggplotly(p, tooltip="text")
+htmltools::tagList(l)
+```
+
+### nb_poncta_area_um2_weighted
+```{r echo = FALSE, message=FALSE,  warning=FALSE}
+# Analyse avec la modalité All CATHB
+# On fait la moyenne des airs des Cathepsine pour une chaque cellule
+# Ensuite on fait des airs des cellules pour un même individu
+data2 <- data %>% filter(modality == "all CATHB")
+data2 <- data2 %>% select(brain_id, image_id, cell_id, nb_poncta_area_um2_weighted)
+data2 <- unique(data2)
+
+group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
+data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+
+data3 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(nb_poncta_area_um2_weighted, na.rm = TRUE))
+data3 <- merge(data3, group, by.x = "brain_id", by.y = "brain_id")
+p <- data3 %>% ggplot(aes(x = disease_grp, y = mean, text = brain_id))+
+  geom_boxplot()+
+  geom_jitter()+
+  theme_classic()
+l <- plotly::ggplotly(p, tooltip="text")
+htmltools::tagList(l)
+```
+
 ## Size 4 {.tabset}
 ```{r, echo = FALSE, warning = FALSE, message = FALSE, results = FALSE}
 data <- openxlsx::read.xlsx("/home/baptiste.criniere/Documents/PB_AD_KA/Data/icy_size4.xlsx", sheet = 1)
@@ -194,6 +233,23 @@ data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
 data3 <- data2 %>% group_by(brain_id) %>% summarize(mean = mean(moyenne, na.rm = TRUE))
 data3 <- merge(data3, group, by.x = "brain_id", by.y = "brain_id")
 p <- data3 %>% ggplot(aes(x = disease_grp, y = mean, text = brain_id))+
+  geom_boxplot()+
+  geom_jitter()+
+  theme_classic()
+l <- plotly::ggplotly(p, tooltip="text")
+htmltools::tagList(l)
+```
+
+### contour
+```{r echo = FALSE, message=FALSE,  warning=FALSE}
+# Analyse avec la modalité excl CATHB
+# Ensuite on fait des airs des cellules pour un même individu
+data2 <- data %>% filter(modality == "contour")
+data2 <- data2 %>% group_by(brain_id) %>% summarize(moyenne = mean(area_um2, na.rm = TRUE))
+group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
+data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+
+p <- data2 %>% ggplot(aes(x = disease_grp, y = moyenne, text = brain_id))+
   geom_boxplot()+
   geom_jitter()+
   theme_classic()
@@ -413,7 +469,7 @@ group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
 data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
 data2$disease_grp <- relevel(data2$disease_grp, ref = "CTRL")
 mod1 <- lmer(moyenne ~ disease_grp  + (1 | brain_id), data = data2)
-# ggResidpanel::resid_panel(mod1)
+ggResidpanel::resid_panel(mod1)
 # Anova(mod1)
 # performance::icc(mod1)
 # emmeans::emmeans(mod1, trt.vs.ctrl ~ disease_grp)$contrasts
@@ -454,8 +510,22 @@ mod4 <- lmer(moyenne ~ disease_grp  + (1 | brain_id), data = data2)
 # performance::icc(mod4)
 # emmeans::emmeans(mod4, trt.vs.ctrl ~ disease_grp)$contrasts
 
-texreg::knitreg(list(mod1, mod2, mod3, mod4),
-                custom.model.names = c("Model all CATHB", "Model LF", "Model excl CATHB", "Model minus LF"),
+## Nb_poncta_area_um2_weighted
+data2 <- data %>% filter(modality == "all CATHB")
+data2 <- data2 %>% select(brain_id, image_id, cell_id, nb_poncta_area_um2_weighted)
+data2 <- unique(data2)
+group <- data %>% group_by(brain_id, disease_grp) %>% summarize()
+data2 <- merge(data2, group, by.x = "brain_id", by.y = "brain_id")
+data2$disease_grp <- relevel(data2$disease_grp, ref = "CTRL")
+mod5 <- lmer(nb_poncta_area_um2_weighted ~ disease_grp  + (1 | brain_id), data = data2)
+# ggResidpanel::resid_panel(mod5)
+# Anova(mod5)
+# performance::icc(mod5)
+# emmeans::emmeans(mod5, trt.vs.ctrl ~ disease_grp)$contrasts
+
+## Représentation graphique
+texreg::knitreg(list(mod1, mod2, mod3, mod4, mod5),
+                custom.model.names = c("Model all CATHB", "Model LF", "Model excl CATHB", "Model minus LF", "Model nb_poncta"),
                 caption            = "CTRL vs Disease for each modality",
                 caption.above      = TRUE,
                 single.row         = TRUE,
@@ -526,6 +596,8 @@ mod4 <- lmer(moyenne ~ disease_grp  + (1 | brain_id), data = data2)
 # performance::icc(mod4)
 # emmeans::emmeans(mod4, trt.vs.ctrl ~ disease_grp)$contrasts
 
+
+## Représentation graphique
 texreg::knitreg(list(mod1, mod2, mod3, mod4),
                 custom.model.names = c("Model all CATHB", "Model LF", "Model excl CATHB", "Model minus LF"),
                 caption            = "CTRL vs Disease for each modality",
