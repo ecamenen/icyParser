@@ -4,13 +4,27 @@
 
 library(stringr)
 library(janitor)
-library(openxlsx)
+library(readxl)
 library(parallel)
 
 pathos <- c(c("CTRL", "Crtl", "Ctrl", "ctrl"), "[sS]AD", "D[uU][pP][- ]?APP", "APP(?:mutation)?", "APP point mutation", "DS", "DS-D")
 pathos <- paste(pathos, collapse = "|")
 exp_reg <- paste0("[-_](", pathos, ")[-_ ](.+)")
 meta_reg <- "(^\\d{8})-(IHC) (H\\d{3})(.*)(\\.lif(.*))? ?- ?(?:Series0)?(\\d{1,2})(?:\\.cells)? ?[-_]+ICY( -CELL_(\\d))?(_DATA)?_([-\\w]+).xlsx$"
+
+path <- file.path("~", "DATA", "icy")
+folder <- basename(list.dirs(path, recursive = FALSE))[2]
+n_size <- gsub("Cathepsin-size0(\\d)", "\\1", folder)
+file_names <- list.files(path = file.path(path, folder), pattern = "^\\d{8}.*.xls", recursive = TRUE)
+file_names <- file_names[!grepl("(egative)|(ctrl ?-?neg)", file_names)]
+
+types_to_modify <- c("CONTOUR", "All-CathepsinB", "Exclusive-CathepsinB", "MinusLipofuscin", "Lipofuscin")
+types_modified <- c("contour", "all CATHB", "excl CATHB", "minus LF", "LF")
+
+var_names <- c("contour_px", "interior_px", "perimeter_um", "area_um2")
+keys <- c("date", "analysis", "exp_id", "disease_grp", "brain_id", "image_id", "cell_id", "modality")
+
+CST <- 0.08154
 
 extract_metada <- function(file_name) {
     metadatas <- str_replace(
@@ -38,26 +52,10 @@ extract_metada <- function(file_name) {
     c(metadatas[seq(3)], grp, brain_id, metadatas[5:7])
 }
 
-path <- file.path("~", "DATA", "icy")
-folder <- basename(list.dirs(path, recursive = FALSE))[2]
-n_size <- gsub("Cathepsin-size0(\\d)", "\\1", folder)
-file_names <- list.files(path = file.path(path, folder), pattern = "^\\d{8}.*.xls", recursive = TRUE)
-file_names <- file_names[!grepl("(egative)|(ctrl ?-?neg)", file_names)]
-
-files <- list()
-
-types_to_modify <- c("CONTOUR", "All-CathepsinB", "Exclusive-CathepsinB", "MinusLipofuscin", "Lipofuscin")
-types_modified <- c("contour", "all CATHB", "excl CATHB", "minus LF", "LF")
-
-var_names <- c("contour_px", "interior_px", "perimeter_um", "area_um2")
-keys <- c("date", "analysis", "exp_id", "disease_grp", "brain_id", "image_id", "cell_id", "modality")
-
-CST <- 0.08154
-
 format_icy <- function(file_name) {
 
     df <- read_excel(file.path(path, folder, file_name))
-    df <- clean_names(df)
+    df <- as.data.frame(clean_names(df))
 
     metadatas <- extract_metada(file_name)
     i_type <- which(types_to_modify == metadatas[8])
@@ -81,17 +79,20 @@ format_icy <- function(file_name) {
     df[, c(keys[-2], var_names)]
 }
 
+
 files <- mclapply(
     seq_along(file_names),
     FUN = function(i) format_icy(file_names[i]),
     mc.cores = detectCores()
 )
 
+(init <- Sys.time())
 data <- Reduce(rbind, files)
+Sys.time() - init
 
-path <- file.path("inst", "extdata")
+path_out <- file.path("inst", "extdata")
 file <- "icy_size"
-save(data, file = paste0(file.path(path, file), n_size, ".RData"))
+save(data, file = paste0(file.path(path_out, file), n_size, ".RData"))
 
 # write.table(data, file = "icy_size4.csv", sep = "\t", row.names = FALSE)
 # write.xlsx(data, file = file.path(path, file))
